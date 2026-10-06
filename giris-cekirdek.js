@@ -111,3 +111,50 @@ export function manifestDogrula(manifest) {
   if (!manifest.dosyalar.includes(manifest.giris)) throw new Error("Manifestte giriş modülü yok.");
   return manifest;
 }
+
+// ---------- Program önbelleği ----------
+// Program dosyaları cihazda, kurulumda üretilen rastgele bir önbellek anahtarıyla şifreli saklanır.
+// Bu anahtar giriş şifresiyle mühürlenmiş kaydın içindedir; şifre olmadan önbellek okunamaz.
+
+export function onbellekAnahtariUret() {
+  return b64(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+async function onbellekAnahtari(hamB64) {
+  return crypto.subtle.importKey("raw", b64Coz(hamB64), { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+export async function onbellekSifrele(hamB64, bayt, kimlik) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData: kodla.encode(`hk-program:${kimlik}`) }, await onbellekAnahtari(hamB64), bayt,
+  ));
+  const paket = new Uint8Array(12 + ct.length);
+  paket.set(iv);
+  paket.set(ct, 12);
+  return paket;
+}
+
+export async function onbellekCoz(hamB64, paket, kimlik) {
+  return new Uint8Array(await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: paket.subarray(0, 12), additionalData: kodla.encode(`hk-program:${kimlik}`) },
+    await onbellekAnahtari(hamB64),
+    paket.subarray(12),
+  ));
+}
+
+// Git'in dosya kimliği: SHA-1("blob <uzunluk>\0" + içerik).
+export async function blobSha(bayt) {
+  const bas = kodla.encode(`blob ${bayt.length}\0`);
+  const tum = new Uint8Array(bas.length + bayt.length);
+  tum.set(bas);
+  tum.set(bayt, bas.length);
+  return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-1", tum)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Ağacın app/ altındaki dosyaları: { "cekirdek/kabuk.js": sha, ... }
+export function programDosyalari(agac) {
+  const sonuc = {};
+  for (const e of agac.tree ?? []) if (e.type === "blob" && e.path.startsWith("app/")) sonuc[e.path.slice(4)] = e.sha;
+  return sonuc;
+}

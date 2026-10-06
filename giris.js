@@ -1,8 +1,11 @@
 // Giriş sayfasının arayüzü. Akış:
 // 1) İlk kez: GitHub anahtarı + repo + dal girilir, giriş şifresiyle mühürlenip bu cihazda saklanır.
-// 2) Sonraki girişlerde: giriş şifresi mührü açar, program private repodan indirilip bellekte çalıştırılır.
+// 2) Sonraki girişlerde: giriş şifresi mührü açar; program cihazdaki şifreli önbellekten yüklenir.
+//    GitHub'a sadece programın son sürümü sorulur, değişen dosyalar indirilir.
+//    İnternet yoksa önbellekteki sürümle açılır.
 import {
   muhurle, muhurAc, YanlisSifre, iceAktarmalariYenidenYaz, manifestDogrula, b64Coz,
+  onbellekAnahtariUret, onbellekSifrele, onbellekCoz, blobSha, programDosyalari,
 } from "./giris-cekirdek.js";
 
 const DEPO_ANAHTARI = "hk1";
@@ -43,32 +46,79 @@ async function githubIstek(cfg, yol, kabul) {
   return yanit;
 }
 
-// Dosya içeriği git blob API'sinden alınır. GitHub'ın "contents" yanıtı bazı dosyaları
-// metin sanıp karakter dönüşümünden geçirdiği için içerik için kullanılmaz.
-async function hamDosya(cfg, yol) {
-  const j = await (await githubIstek(
-    cfg,
-    `/repos/${cfg.repo}/contents/${yolKodla(yol)}?ref=${encodeURIComponent(cfg.dal)}`,
-    "application/vnd.github+json",
-  )).json();
-  const blob = await (await githubIstek(cfg, `/repos/${cfg.repo}/git/blobs/${j.sha}`, "application/vnd.github+json")).json();
-  return new TextDecoder().decode(b64Coz((blob.content ?? "").replace(/\s/g, "")));
+function istekBekle(istek) {
+  return new Promise((coz, reddet) => { istek.onsuccess = () => coz(istek.result); istek.onerror = () => reddet(istek.error); });
 }
 
-async function programiYukle(cfg) {
-  const manifest = manifestDogrula(JSON.parse(await hamDosya(cfg, "app/manifest.json")));
-  // Dosyalar paralel indirilir, sonra bağımlılık sırasıyla bağlanır.
-  const kaynaklar = await Promise.all(manifest.dosyalar.map((yol) => hamDosya(cfg, `app/${yol}`)));
+async function programDeposu() {
+  const istek = indexedDB.open("hk-program", 1);
+  istek.onupgradeneeded = () => { istek.result.createObjectStore("dosya"); istek.result.createObjectStore("durum"); };
+  const db = await istekBekle(istek);
+  const is = (bolme, kip, f) => istekBekle(f(db.transaction(bolme, kip).objectStore(bolme)));
+  return {
+    oku: (b, k) => is(b, "readonly", (s) => s.get(k)),
+    yaz: (b, k, v) => is(b, "readwrite", (s) => s.put(v, k)),
+    sil: (b, k) => is(b, "readwrite", (s) => s.delete(k)),
+    anahtarlar: (b) => is(b, "readonly", (s) => s.getAllKeys()),
+  };
+}
+
+async function kimlikOzeti(metin) {
+  const o = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(metin)));
+  return Array.from(o.subarray(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Program dosyaları cihazda şifreli saklanır; sadece değişenler indirilir.
+async function programiYukle(cfg, durumYaz) {
+  const db = await programDeposu();
+  const anahtarAdi = await kimlikOzeti(`${cfg.repo}|${cfg.dal}`);
+  let durum = await db.oku("durum", anahtarAdi);
+  let bas;
+  try {
+    bas = (await (await githubIstek(cfg, `/repos/${cfg.repo}/git/ref/heads/${yolKodla(cfg.dal)}`, "application/vnd.github+json")).json()).object.sha;
+  } catch (e) {
+    if (!(e instanceof TypeError) || !durum) throw e;
+    bas = durum.bas;
+    durumYaz("İnternet yok; bu cihazdaki program açılıyor…");
+  }
+  if (bas !== durum?.bas) {
+    durumYaz("Programın yeni sürümü kontrol ediliyor…");
+    const agac = await (await githubIstek(cfg, `/repos/${cfg.repo}/git/trees/${bas}?recursive=1`, "application/vnd.github+json")).json();
+    durum = { bas, dosyalar: programDosyalari(agac) };
+  }
+
+  let indirilen = 0;
+  const metinGetir = async (yol) => {
+    const sha = durum.dosyalar[yol];
+    if (!sha) throw new Error(`Program dosyası bulunamadı: ${yol}`);
+    const sakli = await db.oku("dosya", sha);
+    if (sakli) return new TextDecoder().decode(await onbellekCoz(cfg.onbellek, sakli, sha));
+    const blob = await (await githubIstek(cfg, `/repos/${cfg.repo}/git/blobs/${sha}`, "application/vnd.github+json")).json();
+    const bayt = b64Coz((blob.content ?? "").replace(/\s/g, ""));
+    if (await blobSha(bayt) !== sha) throw new Error("Program dosyası eksik indi. Tekrar deneyin.");
+    await db.yaz("dosya", sha, await onbellekSifrele(cfg.onbellek, bayt, sha));
+    indirilen++;
+    return new TextDecoder().decode(bayt);
+  };
+
+  const manifest = manifestDogrula(JSON.parse(await metinGetir("manifest.json")));
+  const kaynaklar = await Promise.all(manifest.dosyalar.map((yol) => metinGetir(yol)));
+  await db.yaz("durum", anahtarAdi, durum);
+  // Artık kullanılmayan eski sürüm dosyaları silinir.
+  const gerekli = new Set(Object.values(durum.dosyalar));
+  for (const sha of await db.anahtarlar("dosya")) if (!gerekli.has(sha)) await db.sil("dosya", sha);
+
   const harita = {};
   manifest.dosyalar.forEach((yol, i) => {
     const kaynak = iceAktarmalariYenidenYaz(kaynaklar[i], harita, yol);
     harita[yol] = URL.createObjectURL(new Blob([kaynak], { type: "text/javascript" }));
   });
-  return import(harita[manifest.giris]);
+  return { program: await import(harita[manifest.giris]), indirilen };
 }
 
 function kilitle() {
   // Sayfayı yeniden yüklemek bellekteki anahtarları ve çözülmüş verileri siler.
+  window.hkKilitleniyor = true;
   location.replace(location.pathname);
 }
 
@@ -102,7 +152,7 @@ $("#kurulum-form").addEventListener("submit", async (e) => {
     const bilgi = await (await githubIstek({ anahtar }, `/repos/${repo}`, "application/vnd.github+json")).json();
     if (bilgi.private !== true) throw new Error("Bu repo private değil. Veriler için private bir repo kullanın.");
     if (!bilgi.permissions?.push) throw new Error("Anahtarın bu repoya yazma izni yok. Contents izni Read and write olmalı.");
-    const kayit = await muhurle(sifre, { anahtar, repo, dal });
+    const kayit = await muhurle(sifre, { anahtar, repo, dal, onbellek: onbellekAnahtariUret() });
     localStorage.setItem(DEPO_ANAHTARI, JSON.stringify(kayit));
     $("#kurulum-form").reset();
     goster("#giris");
@@ -123,6 +173,11 @@ $("#giris-form").addEventListener("submit", async (e) => {
   $("#yukleniyor-mesaj").textContent = "Şifre kontrol ediliyor…";
   try {
     cfg = await muhurAc(sifreAlani.value, kayitOku());
+    if (!cfg.onbellek) {
+      // Eski kurulum: önbellek anahtarı eklenip kayıt yeniden mühürlenir.
+      cfg.onbellek = onbellekAnahtariUret();
+      localStorage.setItem(DEPO_ANAHTARI, JSON.stringify(await muhurle(sifreAlani.value, cfg)));
+    }
   } catch (err) {
     sifreAlani.value = "";
     goster("#giris");
@@ -130,8 +185,8 @@ $("#giris-form").addEventListener("submit", async (e) => {
   }
   sifreAlani.value = "";
   try {
-    $("#yukleniyor-mesaj").textContent = "Program indiriliyor…";
-    const program = await programiYukle(cfg);
+    $("#yukleniyor-mesaj").textContent = "Program açılıyor…";
+    const { program } = await programiYukle(cfg, (m) => { $("#yukleniyor-mesaj").textContent = m; });
     goster("#uygulama");
     bostaKilidiKur();
     await program.baslat({ ...cfg, kok: $("#uygulama"), kilitle });
@@ -150,3 +205,6 @@ $("#sifirla-evet").addEventListener("click", () => {
 $("#sifirla-hayir").addEventListener("click", () => { $("#sifirla-onay").hidden = true; });
 
 goster(kayitOku() ? "#giris" : "#kurulum");
+
+// Uygulama olarak kurulabilmesi ve internetsiz açılabilmesi için.
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

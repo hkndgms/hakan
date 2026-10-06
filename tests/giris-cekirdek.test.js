@@ -91,3 +91,32 @@ test("manifest doğrulaması", () => {
   assert.equal(modulYoluGecerli("a/./b.js"), false);
   assert.equal(modulYoluGecerli("a/b.txt"), false);
 });
+
+import { onbellekAnahtariUret, onbellekSifrele, onbellekCoz, blobSha, programDosyalari } from "../giris-cekirdek.js";
+import { createHash } from "node:crypto";
+
+test("program önbelleği şifreli saklanır, başka anahtar ya da kimlikle açılmaz", async () => {
+  const anahtar = onbellekAnahtariUret();
+  const kod = new TextEncoder().encode("export const x = 1; // GIZLI-KOD");
+  const paket = await onbellekSifrele(anahtar, kod, "sha-a");
+  assert.ok(!Buffer.from(paket).toString("latin1").includes("GIZLI"));
+  assert.deepEqual(await onbellekCoz(anahtar, paket, "sha-a"), kod);
+  await assert.rejects(onbellekCoz(onbellekAnahtariUret(), paket, "sha-a"));
+  await assert.rejects(onbellekCoz(anahtar, paket, "sha-b"));
+});
+
+test("git dosya kimliği git ile aynı hesaplanır", async () => {
+  const bayt = new TextEncoder().encode("merhaba\n");
+  const beklenen = createHash("sha1").update(Buffer.concat([Buffer.from(`blob ${bayt.length}\0`), Buffer.from(bayt)])).digest("hex");
+  assert.equal(await blobSha(bayt), beklenen);
+});
+
+test("ağaçtan sadece program dosyaları alınır", () => {
+  const agac = { tree: [
+    { type: "blob", path: "app/manifest.json", sha: "1" },
+    { type: "blob", path: "app/cekirdek/kabuk.js", sha: "2" },
+    { type: "tree", path: "app/cekirdek", sha: "3" },
+    { type: "blob", path: "tests/a.js", sha: "4" },
+  ] };
+  assert.deepEqual(programDosyalari(agac), { "manifest.json": "1", "cekirdek/kabuk.js": "2" });
+});
