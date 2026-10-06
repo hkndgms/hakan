@@ -1,0 +1,75 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  b64, b64Coz, muhurle, muhurAc, YanlisSifre,
+  iceAktarmalariYenidenYaz, manifestDogrula, modulAdiGecerli,
+} from "../giris-cekirdek.js";
+
+const HIZLI = 1000; // Testlerde hız için düşük tekrar sayısı kullanılır.
+
+test("base64 büyük veride gidiş-dönüş yapar", () => {
+  const veri = new Uint8Array(200000);
+  for (let i = 0; i < veri.length; i += 65536) crypto.getRandomValues(veri.subarray(i, i + 65536));
+  assert.deepEqual(b64Coz(b64(veri)), veri);
+});
+
+test("doğru şifre mührü açar", async () => {
+  const bilgi = { anahtar: "github_pat_deneme", repo: "a/b", dal: "main" };
+  const kayit = await muhurle("dogru-sifre-123", bilgi, HIZLI);
+  assert.deepEqual(await muhurAc("dogru-sifre-123", kayit), bilgi);
+});
+
+test("mühür içinde anahtar düz yazı olarak görünmez", async () => {
+  const kayit = await muhurle("dogru-sifre-123", { anahtar: "github_pat_GIZLI" }, HIZLI);
+  assert.ok(!JSON.stringify(kayit).includes("GIZLI"));
+});
+
+test("yanlış şifre reddedilir", async () => {
+  const kayit = await muhurle("dogru-sifre-123", { anahtar: "x" }, HIZLI);
+  await assert.rejects(muhurAc("yanlis-sifre-123", kayit), YanlisSifre);
+});
+
+test("değiştirilmiş mühür reddedilir", async () => {
+  const kayit = await muhurle("dogru-sifre-123", { anahtar: "x" }, HIZLI);
+  const ct = b64Coz(kayit.ct);
+  ct[0] ^= 1;
+  await assert.rejects(muhurAc("dogru-sifre-123", { ...kayit, ct: b64(ct) }), YanlisSifre);
+});
+
+test("aynı veri her mühürde farklı görünür", async () => {
+  const a = await muhurle("s-123456789012", { anahtar: "x" }, HIZLI);
+  const b = await muhurle("s-123456789012", { anahtar: "x" }, HIZLI);
+  assert.notEqual(a.ct, b.ct);
+  assert.notEqual(a.tuz, b.tuz);
+});
+
+test("içe aktarmalar blob adresleriyle değiştirilir", () => {
+  const harita = { "a.js": "blob:1", "b.js": "blob:2" };
+  const kaynak = [
+    'import { x } from "./a.js";',
+    "import * as y from './b.js';",
+    'import "./a.js";',
+    'const z = await import("./b.js");',
+    'export { q } from "./a.js";',
+  ].join("\n");
+  const sonuc = iceAktarmalariYenidenYaz(kaynak, harita);
+  assert.equal(sonuc, [
+    'import { x } from "blob:1";',
+    "import * as y from 'blob:2';",
+    'import "blob:1";',
+    'const z = await import("blob:2");',
+    'export { q } from "blob:1";',
+  ].join("\n"));
+});
+
+test("manifest dışındaki modül reddedilir", () => {
+  assert.throws(() => iceAktarmalariYenidenYaz('import "./yok.js";', {}), /Manifest dışında/);
+});
+
+test("manifest doğrulaması", () => {
+  assert.ok(manifestDogrula({ giris: "main.js", dosyalar: ["a.js", "main.js"] }));
+  assert.throws(() => manifestDogrula({ giris: "main.js", dosyalar: [] }));
+  assert.throws(() => manifestDogrula({ giris: "main.js", dosyalar: ["../kotu.js", "main.js"] }));
+  assert.throws(() => manifestDogrula({ giris: "yok.js", dosyalar: ["main.js"] }));
+  assert.equal(modulAdiGecerli("alt/klasor.js"), false);
+});

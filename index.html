@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' blob:; connect-src https://api.github.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Giriş</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="stil.css">
+</head>
+<body>
+<main id="kurulum" class="kart" hidden>
+  <h1>İlk kurulum</h1>
+  <p class="aciklama">Bu cihazda ilk kez giriş yapıyorsunuz. Bilgiler giriş şifrenizle şifrelenip sadece bu tarayıcıda saklanır.</p>
+  <form id="kurulum-form" autocomplete="off">
+    <label for="kur-anahtar">GitHub erişim anahtarı</label>
+    <input id="kur-anahtar" type="password" required spellcheck="false">
+    <label for="kur-repo">Private repo</label>
+    <input id="kur-repo" type="text" required placeholder="kullanici/repo" spellcheck="false">
+    <label for="kur-dal">Dal</label>
+    <input id="kur-dal" type="text" placeholder="main" spellcheck="false">
+    <label for="kur-sifre">Giriş şifresi</label>
+    <input id="kur-sifre" type="password" required autocomplete="new-password">
+    <label for="kur-sifre2">Giriş şifresi tekrar</label>
+    <input id="kur-sifre2" type="password" required autocomplete="new-password">
+    <p id="kurulum-hata" class="hata" role="alert" hidden></p>
+    <button type="submit">Kaydet</button>
+  </form>
+</main>
+
+<main id="giris" class="kart" hidden>
+  <h1>Giriş</h1>
+  <form id="giris-form" autocomplete="off">
+    <label for="giris-sifre">Giriş şifresi</label>
+    <input id="giris-sifre" type="password" required autocomplete="current-password">
+    <p id="giris-hata" class="hata" role="alert" hidden></p>
+    <button type="submit">Giriş yap</button>
+  </form>
+  <button id="sifirla" type="button" class="baglanti">Bu cihazdaki kaydı sil</button>
+  <div id="sifirla-onay" class="onay" hidden>
+    <p>Bu cihazdaki şifreli giriş bilgisi silinecek. Verileriniz etkilenmez. Tekrar giriş için GitHub anahtarını yeniden girmeniz gerekir.</p>
+    <button id="sifirla-evet" type="button" class="tehlike">Sil</button>
+    <button id="sifirla-hayir" type="button" class="ikincil">Vazgeç</button>
+  </div>
+</main>
+
+<main id="yukleniyor" class="kart" hidden>
+  <p id="yukleniyor-mesaj">Yükleniyor…</p>
+</main>
+
+<div id="uygulama" hidden></div>
+<script type="module" src="giris.js"></script>
+</body>
+</html>
