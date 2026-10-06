@@ -54,11 +54,13 @@ async function hamDosya(cfg, yol) {
 
 async function programiYukle(cfg) {
   const manifest = manifestDogrula(JSON.parse(await hamDosya(cfg, "app/manifest.json")));
+  // Dosyalar paralel indirilir, sonra bağımlılık sırasıyla bağlanır.
+  const kaynaklar = await Promise.all(manifest.dosyalar.map((yol) => hamDosya(cfg, `app/${yol}`)));
   const harita = {};
-  for (const ad of manifest.dosyalar) {
-    const kaynak = iceAktarmalariYenidenYaz(await hamDosya(cfg, `app/${ad}`), harita);
-    harita[ad] = URL.createObjectURL(new Blob([kaynak], { type: "text/javascript" }));
-  }
+  manifest.dosyalar.forEach((yol, i) => {
+    const kaynak = iceAktarmalariYenidenYaz(kaynaklar[i], harita, yol);
+    harita[yol] = URL.createObjectURL(new Blob([kaynak], { type: "text/javascript" }));
+  });
   return import(harita[manifest.giris]);
 }
 

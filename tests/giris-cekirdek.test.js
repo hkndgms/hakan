@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   b64, b64Coz, muhurle, muhurAc, YanlisSifre,
-  iceAktarmalariYenidenYaz, manifestDogrula, modulAdiGecerli,
+  iceAktarmalariYenidenYaz, manifestDogrula, modulYoluGecerli, yolCozumle,
 } from "../giris-cekirdek.js";
 
 const HIZLI = 1000; // Testlerde hız için düşük tekrar sayısı kullanılır.
@@ -63,13 +63,31 @@ test("içe aktarmalar blob adresleriyle değiştirilir", () => {
 });
 
 test("manifest dışındaki modül reddedilir", () => {
-  assert.throws(() => iceAktarmalariYenidenYaz('import "./yok.js";', {}), /Manifest dışında/);
+  assert.throws(() => iceAktarmalariYenidenYaz('import "./yok.js";', {}), /Manifestte önce/);
+});
+
+test("alt klasörlerdeki göreli yollar çözülür", () => {
+  assert.equal(yolCozumle("moduller/kasa/kasa.js", "../../cekirdek/depo.js"), "cekirdek/depo.js");
+  assert.equal(yolCozumle("moduller/kasa/kasa.js", "./defter.js"), "moduller/kasa/defter.js");
+  assert.equal(yolCozumle("cekirdek/kabuk.js", "../moduller/kasa/kasa.js"), "moduller/kasa/kasa.js");
+  assert.throws(() => yolCozumle("a.js", "../disari.js"), /dışına çıkan/);
+  const harita = { "cekirdek/depo.js": "blob:d", "moduller/kasa/defter.js": "blob:k" };
+  const sonuc = iceAktarmalariYenidenYaz(
+    'import { a } from "../../cekirdek/depo.js";\nimport * as d from "./defter.js";',
+    harita,
+    "moduller/kasa/kasa.js",
+  );
+  assert.equal(sonuc, 'import { a } from "blob:d";\nimport * as d from "blob:k";');
 });
 
 test("manifest doğrulaması", () => {
   assert.ok(manifestDogrula({ giris: "main.js", dosyalar: ["a.js", "main.js"] }));
+  assert.ok(manifestDogrula({ giris: "c/k.js", dosyalar: ["c/a.js", "c/k.js"] }));
   assert.throws(() => manifestDogrula({ giris: "main.js", dosyalar: [] }));
   assert.throws(() => manifestDogrula({ giris: "main.js", dosyalar: ["../kotu.js", "main.js"] }));
+  assert.throws(() => manifestDogrula({ giris: "main.js", dosyalar: ["a//b.js", "main.js"] }));
   assert.throws(() => manifestDogrula({ giris: "yok.js", dosyalar: ["main.js"] }));
-  assert.equal(modulAdiGecerli("alt/klasor.js"), false);
+  assert.equal(modulYoluGecerli("/kok.js"), false);
+  assert.equal(modulYoluGecerli("a/./b.js"), false);
+  assert.equal(modulYoluGecerli("a/b.txt"), false);
 });

@@ -65,20 +65,38 @@ export async function muhurAc(sifre, kayit) {
   return JSON.parse(coz.decode(acik));
 }
 
-const MODUL_ADI = /^[\w.-]+\.js$/;
+const YOL_PARCASI = /^[\w.-]+$/;
 
-export function modulAdiGecerli(ad) {
-  return typeof ad === "string" && MODUL_ADI.test(ad);
+// Program dosyası yolu: "cekirdek/kripto.js" gibi; ".", ".." ve boş parça içeremez.
+export function modulYoluGecerli(yol) {
+  if (typeof yol !== "string" || !yol.endsWith(".js")) return false;
+  return yol.split("/").every((p) => YOL_PARCASI.test(p) && p !== "." && p !== "..");
 }
 
-// Programın modülleri blob adresinden yüklendiği için "./x.js" gibi göreli
-// içe aktarmalar, önceden oluşturulmuş blob adresleriyle değiştirilir.
-export function iceAktarmalariYenidenYaz(kaynak, harita) {
+// "moduller/kasa/kasa.js" içindeki "../../cekirdek/depo.js" -> "cekirdek/depo.js"
+export function yolCozumle(kaynakYolu, belirtec) {
+  const parcalar = kaynakYolu.split("/").slice(0, -1);
+  for (const p of belirtec.split("/")) {
+    if (p === ".") continue;
+    if (p === "..") {
+      if (parcalar.length === 0) throw new Error(`Program klasörünün dışına çıkan içe aktarma: ${belirtec}`);
+      parcalar.pop();
+    } else {
+      parcalar.push(p);
+    }
+  }
+  return parcalar.join("/");
+}
+
+// Programın modülleri blob adresinden yüklendiği için göreli içe aktarmalar,
+// önceden oluşturulmuş blob adresleriyle değiştirilir.
+export function iceAktarmalariYenidenYaz(kaynak, harita, kaynakYolu = "") {
   return kaynak.replace(
-    /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(["'])\.\/([\w.-]+\.js)\2/g,
-    (_tam, on, tirnak, ad) => {
-      if (!Object.hasOwn(harita, ad)) throw new Error(`Manifest dışında modül: ${ad}`);
-      return on + tirnak + harita[ad] + tirnak;
+    /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(["'])(\.{1,2}\/[\w./-]+\.js)\2/g,
+    (_tam, on, tirnak, belirtec) => {
+      const yol = yolCozumle(kaynakYolu, belirtec);
+      if (!Object.hasOwn(harita, yol)) throw new Error(`Manifestte önce gelmesi gereken modül: ${yol}`);
+      return on + tirnak + harita[yol] + tirnak;
     },
   );
 }
@@ -87,8 +105,8 @@ export function manifestDogrula(manifest) {
   if (!manifest || !Array.isArray(manifest.dosyalar) || manifest.dosyalar.length === 0) {
     throw new Error("Program manifesti geçersiz.");
   }
-  for (const ad of manifest.dosyalar) {
-    if (!modulAdiGecerli(ad)) throw new Error(`Geçersiz modül adı: ${ad}`);
+  for (const yol of manifest.dosyalar) {
+    if (!modulYoluGecerli(yol)) throw new Error(`Geçersiz modül yolu: ${yol}`);
   }
   if (!manifest.dosyalar.includes(manifest.giris)) throw new Error("Manifestte giriş modülü yok.");
   return manifest;
