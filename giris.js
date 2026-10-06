@@ -2,7 +2,7 @@
 // 1) İlk kez: GitHub anahtarı + repo + dal girilir, giriş şifresiyle mühürlenip bu cihazda saklanır.
 // 2) Sonraki girişlerde: giriş şifresi mührü açar, program private repodan indirilip bellekte çalıştırılır.
 import {
-  muhurle, muhurAc, YanlisSifre, iceAktarmalariYenidenYaz, manifestDogrula,
+  muhurle, muhurAc, YanlisSifre, iceAktarmalariYenidenYaz, manifestDogrula, b64Coz,
 } from "./giris-cekirdek.js";
 
 const DEPO_ANAHTARI = "hk1";
@@ -43,13 +43,16 @@ async function githubIstek(cfg, yol, kabul) {
   return yanit;
 }
 
+// Dosya içeriği git blob API'sinden alınır. GitHub'ın "contents" yanıtı bazı dosyaları
+// metin sanıp karakter dönüşümünden geçirdiği için içerik için kullanılmaz.
 async function hamDosya(cfg, yol) {
-  const y = await githubIstek(
+  const j = await (await githubIstek(
     cfg,
     `/repos/${cfg.repo}/contents/${yolKodla(yol)}?ref=${encodeURIComponent(cfg.dal)}`,
-    "application/vnd.github.raw+json",
-  );
-  return y.text();
+    "application/vnd.github+json",
+  )).json();
+  const blob = await (await githubIstek(cfg, `/repos/${cfg.repo}/git/blobs/${j.sha}`, "application/vnd.github+json")).json();
+  return new TextDecoder().decode(b64Coz((blob.content ?? "").replace(/\s/g, "")));
 }
 
 async function programiYukle(cfg) {
