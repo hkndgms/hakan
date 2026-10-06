@@ -17,36 +17,57 @@
 <link rel="stylesheet" href="stil.css">
 </head>
 <body>
-<main id="kurulum" class="kart" hidden>
-  <h1>İlk kurulum</h1>
-  <p class="aciklama">Bu cihazda ilk kez giriş yapıyorsunuz. Bilgiler giriş şifrenizle şifrelenip sadece bu tarayıcıda saklanır.</p>
-  <form id="kurulum-form" autocomplete="off">
-    <label for="kur-anahtar">GitHub erişim anahtarı</label>
-    <input id="kur-anahtar" type="password" required spellcheck="false">
-    <label for="kur-repo">Private repo</label>
-    <input id="kur-repo" type="text" required placeholder="kullanici/repo" spellcheck="false">
-    <label for="kur-dal">Dal</label>
-    <input id="kur-dal" type="text" placeholder="main" spellcheck="false">
-    <label for="kur-sifre">Giriş şifresi</label>
-    <input id="kur-sifre" type="password" required autocomplete="new-password">
-    <label for="kur-sifre2">Giriş şifresi tekrar</label>
-    <input id="kur-sifre2" type="password" required autocomplete="new-password">
-    <div id="dosya-sifre-alani" class="onay" hidden>
-      <label for="dosya-sifre">Kurulum dosyasının şifresi</label>
-      <input id="dosya-sifre" type="password" autocomplete="off">
-      <div class="satir">
-        <button id="dosya-ac" type="button">Dosyayı aç</button>
-        <button id="dosya-vazgec" type="button" class="ikincil">Vazgeç</button>
-      </div>
-    </div>
-    <p id="kurulum-hata" class="hata" role="alert" hidden></p>
-    <p id="kurulum-bilgi" class="bilgi" role="status" hidden></p>
+<main id="karsilama" class="kart" hidden>
+  <h1>Hoş geldiniz</h1>
+  <p class="aciklama">Bu cihazda ilk kez açıyorsunuz. Nasıl kurmak istersiniz?</p>
+  <div class="secenekler">
+    <button id="sec-dosya" type="button" class="secenek">
+      <strong>Kurulum dosyam var</strong>
+      <span>Başka bir cihazdan indirdiğiniz dosyayla tek adımda.</span>
+    </button>
+    <button id="sec-elle" type="button" class="secenek ikincil">
+      <strong>İlk kurulumu yap</strong>
+      <span>GitHub erişim anahtarınızla.</span>
+    </button>
+  </div>
+</main>
+
+<main id="dosyadan" class="kart" hidden>
+  <button type="button" class="baglanti geri">← Geri</button>
+  <h1>Kurulum dosyasıyla</h1>
+  <form id="dosya-form" autocomplete="off">
+    <label for="dosya-sec">Kurulum dosyası</label>
     <div class="satir">
-      <button id="kurulum-indir" type="button" class="ikincil">Kurulum dosyası indir</button>
-      <button id="kurulum-yukle" type="button" class="ikincil">Dosyadan yükle</button>
-      <input id="kurulum-dosyasi" type="file" accept=".json,application/json" hidden>
+      <button id="dosya-sec" type="button" class="ikincil">Dosya seç</button>
+      <span id="dosya-adi" class="ipucu">Seçilmedi</span>
     </div>
-    <button type="submit">Kaydet</button>
+    <input id="kurulum-dosyasi" type="file" accept=".json,application/json" hidden>
+    <label for="dosya-sifre">Dosyanın şifresi</label>
+    <div class="sifre-kutusu"><input id="dosya-sifre" type="password" autocomplete="off"><button type="button" class="goster">Göster</button></div>
+    <small class="ipucu">Bu şifre aynı zamanda bu cihazın giriş şifresi olur.</small>
+    <p id="dosya-hata" class="hata" role="alert" hidden></p>
+    <button type="submit">Kur ve giriş yap</button>
+  </form>
+</main>
+
+<main id="elle" class="kart" hidden>
+  <button type="button" class="baglanti geri">← Geri</button>
+  <h1>İlk kurulum</h1>
+  <form id="elle-form" autocomplete="off">
+    <label for="kur-anahtar">GitHub erişim anahtarı</label>
+    <div class="sifre-kutusu"><input id="kur-anahtar" type="password" spellcheck="false" placeholder="github_pat_…"><button type="button" class="goster">Göster</button></div>
+    <small class="ipucu">Anahtarınız yoksa <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub'da oluşturun</a>: sadece veri reposunu seçin, Contents iznini "Read and write" yapın.</small>
+    <p id="repo-durum" class="ipucu" role="status" hidden></p>
+    <div id="repo-alani" hidden>
+      <label for="kur-repo">Bağlanılacak repo</label>
+      <select id="kur-repo"></select>
+    </div>
+    <label for="kur-sifre">Bu cihaz için giriş şifresi</label>
+    <div class="sifre-kutusu"><input id="kur-sifre" type="password" autocomplete="new-password"><button type="button" class="goster">Göster</button></div>
+    <small class="ipucu">En az 12 karakter. Her girişte bu şifreyi yazacaksınız.</small>
+    <label for="kur-dosya" class="onay-kutusu"><input id="kur-dosya" type="checkbox" checked> Kurulum dosyasını da indir (diğer cihazlar için)</label>
+    <p id="elle-hata" class="hata" role="alert" hidden></p>
+    <button type="submit">Kaydet ve giriş yap</button>
   </form>
 </main>
 
@@ -54,19 +75,28 @@
   <h1>Giriş</h1>
   <form id="giris-form" autocomplete="off">
     <label for="giris-sifre">Giriş şifresi</label>
-    <input id="giris-sifre" type="password" required autocomplete="current-password">
+    <div class="sifre-kutusu"><input id="giris-sifre" type="password" autocomplete="current-password"><button type="button" class="goster">Göster</button></div>
+    <label for="giris-veri">Veri şifresi</label>
+    <div class="sifre-kutusu"><input id="giris-veri" type="password" autocomplete="off"><button type="button" class="goster">Göster</button></div>
+    <small class="ipucu">Veri şifresini boş bırakırsanız program açılınca sorulur.</small>
     <p id="giris-hata" class="hata" role="alert" hidden></p>
     <button type="submit">Giriş yap</button>
   </form>
-  <div class="satir">
-    <button id="giris-indir" type="button" class="baglanti">Kurulum dosyası indir</button>
-    <button id="sifirla" type="button" class="baglanti">Bu cihazdaki kaydı sil</button>
-  </div>
-  <div id="sifirla-onay" class="onay" hidden>
-    <p>Bu cihazdaki şifreli giriş bilgisi silinecek. Verileriniz etkilenmez. Tekrar giriş için GitHub anahtarını yeniden girmeniz gerekir.</p>
-    <button id="sifirla-evet" type="button" class="tehlike">Sil</button>
-    <button id="sifirla-hayir" type="button" class="ikincil">Vazgeç</button>
-  </div>
+  <details class="diger">
+    <summary>Diğer seçenekler</summary>
+    <div class="satir">
+      <button id="giris-indir" type="button" class="baglanti">Kurulum dosyası indir</button>
+      <button id="sifirla" type="button" class="baglanti">Bu cihazdaki kaydı sil</button>
+    </div>
+    <small class="ipucu">Kurulum dosyası için önce yukarıya giriş şifrenizi yazın; dosya bu şifreyle korunur.</small>
+    <div id="sifirla-onay" class="onay" hidden>
+      <p>Bu cihazdaki şifreli giriş bilgisi silinecek. Verileriniz etkilenmez. Tekrar kurmak için kurulum dosyası ya da GitHub anahtarı gerekir.</p>
+      <div class="satir">
+        <button id="sifirla-evet" type="button" class="tehlike">Sil</button>
+        <button id="sifirla-hayir" type="button" class="ikincil">Vazgeç</button>
+      </div>
+    </div>
+  </details>
 </main>
 
 <main id="yukleniyor" class="kart" hidden>

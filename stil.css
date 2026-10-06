@@ -34,3 +34,20 @@ button:disabled { opacity: .6; cursor: wait; }
 .satir button { margin-top: 10px; }
 .bilgi { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--zemin); color: var(--metin); font-size: .9rem; border: 1px solid var(--cizgi); }
 .onay label { display: block; margin-top: 0; }
+.secenekler { display: grid; gap: 10px; margin-top: 6px; }
+.secenek { display: grid; gap: 2px; text-align: left; padding: 14px 16px; margin-top: 0; }
+.secenek strong { font-size: 1.02rem; }
+.secenek span { font-weight: 400; font-size: .88rem; opacity: .85; }
+.geri { margin: 0 0 8px; text-decoration: none; }
+.sifre-kutusu { display: flex; gap: 6px; align-items: stretch; }
+.sifre-kutusu input { flex: 1; min-width: 0; }
+.sifre-kutusu .goster { margin: 0; padding: 0 12px; background: none; color: var(--soluk); border: 1px solid var(--cizgi); font-weight: 500; font-size: .85rem; }
+.ipucu { color: var(--soluk); font-size: .84rem; }
+.ipucu a { color: var(--vurgu); }
+.onay-kutusu { display: flex; gap: 8px; align-items: center; font-weight: 400; margin-top: 12px; }
+.onay-kutusu input { width: auto; }
+#kur-repo { font: inherit; padding: 10px 12px; border: 1px solid var(--cizgi); border-radius: 8px; background: var(--zemin); color: var(--metin); width: 100%; }
+.diger { margin-top: 16px; border-top: 1px solid var(--cizgi); padding-top: 10px; }
+.diger summary { cursor: pointer; color: var(--soluk); font-size: .9rem; }
+.diger .satir button { margin-top: 8px; }
+.diger .ipucu { display: block; margin-top: 6px; }

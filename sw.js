@@ -1,7 +1,7 @@
 // Giriş sayfasının dosyalarını saklar; böylece sayfa internetsiz de açılır ve uygulama olarak kurulabilir.
 // Sadece bu sitenin kendi dosyalarına dokunur. GitHub isteklerine ve verilere karışmaz.
 // Önce ağdan dener (güncel sürüm), ağ yoksa saklananı verir.
-const SURUM = "giris-v1";
+const SURUM = "giris-v2";
 const DOSYALAR = ["./", "index.html", "giris.js", "giris-cekirdek.js", "stil.css", "manifest.webmanifest", "ikon-192.png", "ikon-512.png"];
 
 self.addEventListener("install", (olay) => {

@@ -176,3 +176,10 @@ export function programDosyalari(agac) {
   for (const e of agac.tree ?? []) if (e.type === "blob" && e.path.startsWith("app/")) sonuc[e.path.slice(4)] = e.sha;
   return sonuc;
 }
+
+// Anahtarın yazabildiği private repolar: [{ repo: "kullanici/repo", dal: "varsayılan dal" }]
+export function uygunRepolar(liste) {
+  return (Array.isArray(liste) ? liste : [])
+    .filter((r) => r?.private === true && r.permissions?.push === true)
+    .map((r) => ({ repo: r.full_name, dal: r.default_branch || "main" }));
+}

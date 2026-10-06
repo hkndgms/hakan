@@ -139,3 +139,14 @@ test("cihaz kaydı kurulum dosyası yerine, kurulum dosyası cihaz kaydı yerine
   const dosya = await kurulumDosyasiOlustur("sifre-123456789", { anahtar: "a", repo: "r/r", dal: "d" }, HIZLI);
   await assert.rejects(muhurAc("sifre-123456789", dosya), YanlisSifre);
 });
+
+import { uygunRepolar } from "../giris-cekirdek.js";
+
+test("anahtarın yazabildiği private repolar seçilir", () => {
+  assert.deepEqual(uygunRepolar([
+    { full_name: "a/veri", private: true, permissions: { push: true }, default_branch: "kod" },
+    { full_name: "a/acik", private: false, permissions: { push: true } },
+    { full_name: "a/salt", private: true, permissions: { push: false } },
+  ]), [{ repo: "a/veri", dal: "kod" }]);
+  assert.deepEqual(uygunRepolar({ message: "Bad credentials" }), []);
+});
