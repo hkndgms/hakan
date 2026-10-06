@@ -93,7 +93,14 @@ async function programiYukle(cfg, durumYaz) {
     const sha = durum.dosyalar[yol];
     if (!sha) throw new Error(`Program dosyası bulunamadı: ${yol}`);
     const sakli = await db.oku("dosya", sha);
-    if (sakli) return new TextDecoder().decode(await onbellekCoz(cfg.onbellek, sakli, sha));
+    if (sakli) {
+      try {
+        return new TextDecoder().decode(await onbellekCoz(cfg.onbellek, sakli, sha));
+      } catch {
+        // Başka bir kurulumun anahtarıyla saklanmış ya da bozulmuş kopya: silinir, yeniden indirilir.
+        await db.sil("dosya", sha);
+      }
+    }
     const blob = await (await githubIstek(cfg, `/repos/${cfg.repo}/git/blobs/${sha}`, "application/vnd.github+json")).json();
     const bayt = b64Coz((blob.content ?? "").replace(/\s/g, ""));
     if (await blobSha(bayt) !== sha) throw new Error("Program dosyası eksik indi. Tekrar deneyin.");
