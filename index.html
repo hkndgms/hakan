@@ -31,7 +31,21 @@
     <input id="kur-sifre" type="password" required autocomplete="new-password">
     <label for="kur-sifre2">Giriş şifresi tekrar</label>
     <input id="kur-sifre2" type="password" required autocomplete="new-password">
+    <div id="dosya-sifre-alani" class="onay" hidden>
+      <label for="dosya-sifre">Kurulum dosyasının şifresi</label>
+      <input id="dosya-sifre" type="password" autocomplete="off">
+      <div class="satir">
+        <button id="dosya-ac" type="button">Dosyayı aç</button>
+        <button id="dosya-vazgec" type="button" class="ikincil">Vazgeç</button>
+      </div>
+    </div>
     <p id="kurulum-hata" class="hata" role="alert" hidden></p>
+    <p id="kurulum-bilgi" class="bilgi" role="status" hidden></p>
+    <div class="satir">
+      <button id="kurulum-indir" type="button" class="ikincil">Kurulum dosyası indir</button>
+      <button id="kurulum-yukle" type="button" class="ikincil">Dosyadan yükle</button>
+      <input id="kurulum-dosyasi" type="file" accept=".json,application/json" hidden>
+    </div>
     <button type="submit">Kaydet</button>
   </form>
 </main>
@@ -44,7 +58,10 @@
     <p id="giris-hata" class="hata" role="alert" hidden></p>
     <button type="submit">Giriş yap</button>
   </form>
-  <button id="sifirla" type="button" class="baglanti">Bu cihazdaki kaydı sil</button>
+  <div class="satir">
+    <button id="giris-indir" type="button" class="baglanti">Kurulum dosyası indir</button>
+    <button id="sifirla" type="button" class="baglanti">Bu cihazdaki kaydı sil</button>
+  </div>
   <div id="sifirla-onay" class="onay" hidden>
     <p>Bu cihazdaki şifreli giriş bilgisi silinecek. Verileriniz etkilenmez. Tekrar giriş için GitHub anahtarını yeniden girmeniz gerekir.</p>
     <button id="sifirla-evet" type="button" class="tehlike">Sil</button>

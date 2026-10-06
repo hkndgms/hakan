@@ -37,25 +37,26 @@ export async function anahtarTuret(sifre, tuz, tekrar = PBKDF2_TEKRAR) {
 }
 
 // Giriş bilgilerini (GitHub anahtarı, repo, dal) giriş şifresiyle mühürler.
-export async function muhurle(sifre, veri, tekrar = PBKDF2_TEKRAR) {
+// ekVeri mührün amacını bağlar: cihaz kaydı ile kurulum dosyası birbirinin yerine kullanılamaz.
+export async function muhurle(sifre, veri, tekrar = PBKDF2_TEKRAR, ekVeri = EK_VERI) {
   const tuz = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const anahtar = await anahtarTuret(sifre, tuz, tekrar);
   const ct = new Uint8Array(await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv, additionalData: kodla.encode(EK_VERI) },
+    { name: "AES-GCM", iv, additionalData: kodla.encode(ekVeri) },
     anahtar,
     kodla.encode(JSON.stringify(veri)),
   ));
   return { v: 1, tekrar, tuz: b64(tuz), iv: b64(iv), ct: b64(ct) };
 }
 
-export async function muhurAc(sifre, kayit) {
+export async function muhurAc(sifre, kayit, ekVeri = EK_VERI) {
   if (!kayit || kayit.v !== 1) throw new Error("Kayıtlı giriş bilgisi tanınmadı.");
   const anahtar = await anahtarTuret(sifre, b64Coz(kayit.tuz), kayit.tekrar);
   let acik;
   try {
     acik = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: b64Coz(kayit.iv), additionalData: kodla.encode(EK_VERI) },
+      { name: "AES-GCM", iv: b64Coz(kayit.iv), additionalData: kodla.encode(ekVeri) },
       anahtar,
       b64Coz(kayit.ct),
     );
@@ -63,6 +64,23 @@ export async function muhurAc(sifre, kayit) {
     throw new YanlisSifre();
   }
   return JSON.parse(coz.decode(acik));
+}
+
+// ---------- Kurulum dosyası ----------
+// Başka bir cihazı kurmak için: GitHub anahtarı, repo ve dal, şifreyle şifrelenmiş tek dosya.
+// Veri şifresi ve cihaza özel önbellek anahtarı dosyaya girmez.
+const KURULUM_EK = "hk-kurulum-dosyasi-v1";
+
+export async function kurulumDosyasiOlustur(sifre, { anahtar, repo, dal }, tekrar = PBKDF2_TEKRAR) {
+  return { tur: "hk-kurulum", ...(await muhurle(sifre, { anahtar, repo, dal }, tekrar, KURULUM_EK)) };
+}
+
+export async function kurulumDosyasiAc(sifre, metin) {
+  let nesne;
+  try { nesne = JSON.parse(metin); } catch { throw new Error("Bu bir kurulum dosyası değil."); }
+  if (nesne?.tur !== "hk-kurulum") throw new Error("Bu bir kurulum dosyası değil.");
+  const { anahtar, repo, dal } = await muhurAc(sifre, nesne, KURULUM_EK);
+  return { anahtar, repo, dal };
 }
 
 const YOL_PARCASI = /^[\w.-]+$/;

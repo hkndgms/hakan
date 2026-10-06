@@ -120,3 +120,22 @@ test("ağaçtan sadece program dosyaları alınır", () => {
   ] };
   assert.deepEqual(programDosyalari(agac), { "manifest.json": "1", "cekirdek/kabuk.js": "2" });
 });
+
+import { kurulumDosyasiOlustur, kurulumDosyasiAc } from "../giris-cekirdek.js";
+
+test("kurulum dosyası şifreyle açılır; veri şifresi ve önbellek anahtarı içinde olmaz", async () => {
+  const bilgi = { anahtar: "github_pat_GIZLI", repo: "a/b", dal: "main", onbellek: "x", veriSifresi: "y" };
+  const dosya = await kurulumDosyasiOlustur("dosya-sifresi-uzun", bilgi, HIZLI);
+  const metin = JSON.stringify(dosya);
+  assert.ok(!metin.includes("GIZLI") && !metin.includes("a/b"));
+  assert.deepEqual(await kurulumDosyasiAc("dosya-sifresi-uzun", metin), { anahtar: "github_pat_GIZLI", repo: "a/b", dal: "main" });
+  await assert.rejects(kurulumDosyasiAc("yanlis-sifre", metin), YanlisSifre);
+  await assert.rejects(kurulumDosyasiAc("x", "merhaba"), /kurulum dosyası değil/);
+});
+
+test("cihaz kaydı kurulum dosyası yerine, kurulum dosyası cihaz kaydı yerine açılmaz", async () => {
+  const kayit = await muhurle("sifre-123456789", { anahtar: "a" }, HIZLI);
+  await assert.rejects(kurulumDosyasiAc("sifre-123456789", JSON.stringify({ ...kayit, tur: "hk-kurulum" })), YanlisSifre);
+  const dosya = await kurulumDosyasiOlustur("sifre-123456789", { anahtar: "a", repo: "r/r", dal: "d" }, HIZLI);
+  await assert.rejects(muhurAc("sifre-123456789", dosya), YanlisSifre);
+});

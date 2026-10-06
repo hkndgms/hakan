@@ -30,3 +30,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .onay p { margin: 0; }
 .onay button { margin-right: 8px; }
 #uygulama { max-width: 960px; margin: 0 auto; }
+.satir { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.satir button { margin-top: 10px; }
+.bilgi { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--zemin); color: var(--metin); font-size: .9rem; border: 1px solid var(--cizgi); }
+.onay label { display: block; margin-top: 0; }

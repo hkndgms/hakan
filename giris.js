@@ -6,6 +6,7 @@
 import {
   muhurle, muhurAc, YanlisSifre, iceAktarmalariYenidenYaz, manifestDogrula, b64Coz,
   onbellekAnahtariUret, onbellekSifrele, onbellekCoz, blobSha, programDosyalari,
+  kurulumDosyasiOlustur, kurulumDosyasiAc,
 } from "./giris-cekirdek.js";
 
 const DEPO_ANAHTARI = "hk1";
@@ -155,6 +156,7 @@ $("#kurulum-form").addEventListener("submit", async (e) => {
     const kayit = await muhurle(sifre, { anahtar, repo, dal, onbellek: onbellekAnahtariUret() });
     localStorage.setItem(DEPO_ANAHTARI, JSON.stringify(kayit));
     $("#kurulum-form").reset();
+    bilgiYaz();
     goster("#giris");
   } catch (err) {
     hata("#kurulum-hata", err.message);
@@ -194,6 +196,97 @@ $("#giris-form").addEventListener("submit", async (e) => {
     goster("#giris");
     hata("#giris-hata", `Program açılamadı: ${err.message}`);
   }
+});
+
+// ---------- Kurulum dosyası ----------
+function dosyaIndir(nesne) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(nesne, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "hesap-kurulum.json";
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function bilgiYaz(mesaj) {
+  const el = $("#kurulum-bilgi");
+  el.textContent = mesaj || "";
+  el.hidden = !mesaj;
+}
+
+async function dugmeyleCalis(dugme, bekleMetni, is) {
+  const eski = dugme.textContent;
+  dugme.disabled = true;
+  dugme.textContent = bekleMetni;
+  try { await is(); } finally { dugme.disabled = false; dugme.textContent = eski; }
+}
+
+// Kurulum ekranındaki bilgilerden dosya: giriş şifresiyle şifrelenir.
+$("#kurulum-indir").addEventListener("click", () => {
+  hata("#kurulum-hata"); bilgiYaz();
+  const anahtar = $("#kur-anahtar").value.trim();
+  const repo = $("#kur-repo").value.trim();
+  const dal = $("#kur-dal").value.trim() || "main";
+  const sifre = $("#kur-sifre").value;
+  if (!anahtar || !/^[\w.-]+\/[\w.-]+$/.test(repo)) return hata("#kurulum-hata", "Önce GitHub anahtarını ve repoyu doldurun.");
+  if (sifre.length < 12 || sifre !== $("#kur-sifre2").value) return hata("#kurulum-hata", "Dosya giriş şifresiyle korunur. Önce iki şifre alanını aynı ve en az 12 karakter olarak doldurun.");
+  dugmeyleCalis($("#kurulum-indir"), "Hazırlanıyor…", async () => {
+    dosyaIndir(await kurulumDosyasiOlustur(sifre, { anahtar, repo, dal }));
+    bilgiYaz("Kurulum dosyası indi. Giriş şifresiyle korunuyor; güvenli bir yerde saklayın.");
+  });
+});
+
+$("#kurulum-yukle").addEventListener("click", () => $("#kurulum-dosyasi").click());
+let yuklenenDosya = "";
+$("#kurulum-dosyasi").addEventListener("change", async () => {
+  hata("#kurulum-hata"); bilgiYaz();
+  const dosya = $("#kurulum-dosyasi").files[0];
+  $("#kurulum-dosyasi").value = "";
+  if (!dosya) return;
+  yuklenenDosya = await dosya.text();
+  $("#dosya-sifre-alani").hidden = false;
+  $("#dosya-sifre").focus();
+});
+$("#dosya-vazgec").addEventListener("click", () => { yuklenenDosya = ""; $("#dosya-sifre").value = ""; $("#dosya-sifre-alani").hidden = true; });
+async function dosyayiAc() {
+  hata("#kurulum-hata");
+  const sifre = $("#dosya-sifre").value;
+  await dugmeyleCalis($("#dosya-ac"), "Açılıyor…", async () => {
+    try {
+      const { anahtar, repo, dal } = await kurulumDosyasiAc(sifre, yuklenenDosya);
+      $("#kur-anahtar").value = anahtar;
+      $("#kur-repo").value = repo;
+      $("#kur-dal").value = dal;
+      $("#kur-sifre").value = sifre;
+      $("#kur-sifre2").value = sifre;
+      $("#dosya-sifre").value = "";
+      yuklenenDosya = "";
+      $("#dosya-sifre-alani").hidden = true;
+      bilgiYaz("Bilgiler dosyadan yüklendi. Giriş şifresi olarak dosyanın şifresi kullanılacak; isterseniz değiştirin. Kaydet'e basın.");
+    } catch (err) {
+      hata("#kurulum-hata", err instanceof YanlisSifre ? "Dosyanın şifresi yanlış." : err.message);
+    }
+  });
+}
+$("#dosya-ac").addEventListener("click", dosyayiAc);
+$("#dosya-sifre").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); dosyayiAc(); } });
+
+// Kurulu cihazdan dosya: giriş şifresiyle açılıp aynı şifreyle dosyaya yazılır.
+$("#giris-indir").addEventListener("click", () => {
+  hata("#giris-hata");
+  const sifre = $("#giris-sifre").value;
+  if (!sifre) return hata("#giris-hata", "Kurulum dosyası için önce giriş şifrenizi yazın.");
+  dugmeyleCalis($("#giris-indir"), "Hazırlanıyor…", async () => {
+    try {
+      const { anahtar, repo, dal } = await muhurAc(sifre, kayitOku());
+      dosyaIndir(await kurulumDosyasiOlustur(sifre, { anahtar, repo, dal }));
+      hata("#giris-hata");
+    } catch (err) {
+      hata("#giris-hata", err instanceof YanlisSifre ? "Şifre yanlış." : err.message);
+    }
+  });
 });
 
 $("#sifirla").addEventListener("click", () => { $("#sifirla-onay").hidden = false; });
