@@ -9,6 +9,7 @@ Bu public repo sadece kişisel kasa sisteminin giriş sayfasını içerir ve Git
 - Program önbelleği (IndexedDB `hk-program`), kurulumda üretilip giriş şifresiyle mühürlenen ayrı bir anahtarla şifrelenir. Dosyalar git kimliğiyle doğrulanır.
 - `sw.js` sadece bu sitenin kendi dosyalarını saklar; GitHub isteklerine karışmaz. Dosya listesi değişirse `SURUM` artırılır.
 - Dış kaynaktan script, font veya stil yüklenmez.
+- Sadece açık tema: `stil.css` içinde `color-scheme: light` sabittir, koyu tema eklenmez.
 - `index.html` içindeki Content-Security-Policy gevşetilmez.
 - Her değişiklikten sonra `npm test` çalıştırılır.
 
